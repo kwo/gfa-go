@@ -2,18 +2,18 @@ package tui
 
 import (
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type ProgressLine struct {
 	id      string
 	spinner spinner.Model
-	lock    *sync.Mutex
 	status  string
+	style   lipgloss.Style
 }
 
 type ProgressMsg struct {
@@ -27,7 +27,6 @@ func NewProgressLine(id string) *ProgressLine {
 		id:      id,
 		spinner: spinner.New(),
 		status:  "",
-		lock:    &sync.Mutex{},
 	}
 }
 
@@ -36,15 +35,27 @@ func (z *ProgressLine) ID() string {
 }
 
 func (z *ProgressLine) GetStatus() string {
-	z.lock.Lock()
-	defer z.lock.Unlock()
 	return z.status
 }
 
-func (z *ProgressLine) SetStatus(status string) {
-	z.lock.Lock()
-	defer z.lock.Unlock()
+func (z *ProgressLine) SetStatus(status string) *ProgressLine {
 	z.status = status
+	return z
+}
+
+func (z *ProgressLine) SetStyle(style lipgloss.Style) *ProgressLine {
+	z.style = style
+	return z
+}
+
+func (z *ProgressLine) SetSpinnerType(spinner spinner.Spinner) *ProgressLine {
+	z.spinner.Spinner = spinner
+	return z
+}
+
+func (z *ProgressLine) SetSpinnerStyle(style lipgloss.Style) *ProgressLine {
+	z.spinner.Style = style
+	return z
 }
 
 func (z *ProgressLine) Init() tea.Cmd {
@@ -73,7 +84,7 @@ func (z *ProgressLine) View() string {
 	str := &strings.Builder{}
 	str.WriteString(z.spinner.View())
 	str.WriteString(" ")
-	str.WriteString(z.GetStatus())
+	str.WriteString(z.style.Render(z.GetStatus()))
 	return str.String()
 }
 

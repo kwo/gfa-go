@@ -7,6 +7,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type model struct {
@@ -20,14 +21,12 @@ type model struct {
 type tickMsg time.Time
 
 func Run(ctx context.Context) error {
-	status := NewStatusLine("s1")
-	status.SetStatus("ready")
+	// https://github.com/charmbracelet/lipgloss
+	statusStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "12", Dark: "5"})
 
-	p1 := NewProgressLine("p1")
-	p1.SetStatus("updating")
-
-	p2 := NewProgressLine("p2")
-	p2.SetStatus("updating")
+	status := NewStatusLine("s1").SetStatus("ready").SetStyle(statusStyle)
+	p1 := NewProgressLine("p1").SetStatus("updating")
+	p2 := NewProgressLine("p2").SetStatus("updating")
 
 	m := &model{
 		status:    status,
@@ -48,9 +47,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tickMsg:
 		m.counter++
-		m.status.SetStatus(time.Now().Format(time.TimeOnly))
-		m.processes[0].SetStatus(fmt.Sprintf("%d", m.counter*2))
-		m.processes[1].SetStatus(fmt.Sprintf("%d", m.counter*3))
+		_ = m.status.SetStatus(time.Now().Format(time.TimeOnly))
+		_ = m.processes[0].SetStatus(fmt.Sprintf("%d", m.counter*2))
+		_ = m.processes[1].SetStatus(fmt.Sprintf("%d", m.counter*3))
 		return m, m.tick()
 
 	case error:
@@ -59,9 +58,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case StatusMsg:
 		model, cmd := m.status.Update(msg)
-		if sl, ok := model.(*StatusLine); ok {
-			m.status = sl
-		}
+		m.status = model.(*StatusLine)
 		return m, cmd
 
 	case ProgressMsg:

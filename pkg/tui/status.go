@@ -1,16 +1,16 @@
 package tui
 
 import (
-	"sync"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type StatusLine struct {
 	id     string
-	lock   *sync.Mutex
 	status string
+	style  lipgloss.Style
 }
 
 type StatusMsg struct {
@@ -22,7 +22,6 @@ func NewStatusLine(id string) *StatusLine {
 	return &StatusLine{
 		id:     id,
 		status: "",
-		lock:   &sync.Mutex{},
 	}
 }
 
@@ -31,15 +30,17 @@ func (z *StatusLine) ID() string {
 }
 
 func (z *StatusLine) GetStatus() string {
-	z.lock.Lock()
-	defer z.lock.Unlock()
 	return z.status
 }
 
-func (z *StatusLine) SetStatus(status string) {
-	z.lock.Lock()
-	defer z.lock.Unlock()
+func (z *StatusLine) SetStatus(status string) *StatusLine {
 	z.status = status
+	return z
+}
+
+func (z *StatusLine) SetStyle(style lipgloss.Style) *StatusLine {
+	z.style = style
+	return z
 }
 
 func (z *StatusLine) Init() tea.Cmd {
@@ -59,11 +60,11 @@ func (z *StatusLine) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (z *StatusLine) View() string {
-	return z.GetStatus()
+	return z.style.Render(z.status)
 }
 
 func (z *StatusLine) tick() tea.Cmd {
-	return tea.Tick(time.Second*1, func(t time.Time) tea.Msg {
+	return tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
 		return StatusMsg{
 			ID:   z.id,
 			Time: t,
