@@ -18,9 +18,8 @@ func main() {
 	if opts == nil {
 		if ko {
 			os.Exit(1)
-		} else {
-			return
 		}
+		return
 	}
 
 	ctx, cancelFn := signalNotifyContextCause(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -42,7 +41,6 @@ func main() {
 		os.Exit(1)
 	}
 	slog.InfoContext(ctx, "done")
-
 }
 
 // context

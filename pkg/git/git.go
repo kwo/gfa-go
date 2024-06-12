@@ -9,7 +9,6 @@ import (
 )
 
 func Run(ctx context.Context, ui *tui.TUI) {
-
 	ui.SetStatus("finding git repositories")
 
 	ui.SetStatus("waiting for processes to finish")
