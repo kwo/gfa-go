@@ -15,6 +15,8 @@ import (
 
 	"github.com/jessevdk/go-flags"
 	"github.com/lmittmann/tint"
+
+	"github.com/kwo/gitterbug/pkg/tui"
 )
 
 func main() {
@@ -41,10 +43,13 @@ func main() {
 		return
 	}
 
-	_, cancelFn := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	ctx, cancelFn := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancelFn()
 
-	slog.Info("Gitterbug")
+	if err := tui.Run(ctx); err != nil {
+		slog.ErrorContext(ctx, "tui exit", "err", err)
+		os.Exit(1)
+	}
 }
 
 // options
