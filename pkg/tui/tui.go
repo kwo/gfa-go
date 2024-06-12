@@ -4,38 +4,47 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
+
+func New() *TUI {
+	// https://github.com/charmbracelet/lipgloss
+	// statusStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "12", Dark: "5"})
+
+	status := NewStatusLine("s1").SetStatus("ready") //.SetStyle(statusStyle)
+	m := &model{
+		status: status,
+	}
+	return &TUI{m: m}
+}
+
+type TUI struct {
+	m *model
+}
+
+func (z *TUI) Run(ctx context.Context) error {
+	p := tea.NewProgram(z.m, tea.WithContext(ctx))
+	_, err := p.Run()
+	return err
+}
+
+func (z *TUI) SetStatus(status string) {
+	z.m.status.SetStatus(status)
+}
+
+func (z *TUI) AddProcess() *ProgressLine {
+	i := len(z.m.processes)
+	p := NewProgressLine(fmt.Sprintf("p%d", i+1))
+	z.m.processes = append(z.m.processes, p)
+	return p
+}
 
 type model struct {
 	status    *StatusLine
 	processes []*ProgressLine
 	quitting  bool
 	err       error
-	counter   int
-}
-
-type tickMsg time.Time
-
-func Run(ctx context.Context) error {
-	// https://github.com/charmbracelet/lipgloss
-	statusStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "12", Dark: "5"})
-
-	status := NewStatusLine("s1").SetStatus("ready").SetStyle(statusStyle)
-	p1 := NewProgressLine("p1").SetStatus("updating")
-	p2 := NewProgressLine("p2").SetStatus("updating")
-
-	m := &model{
-		status:    status,
-		processes: []*ProgressLine{p1, p2},
-	}
-
-	p := tea.NewProgram(m, tea.WithContext(ctx))
-	_, err := p.Run()
-	return err
 }
 
 func (m *model) Init() tea.Cmd {
@@ -44,13 +53,6 @@ func (m *model) Init() tea.Cmd {
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-
-	case tickMsg:
-		m.counter++
-		_ = m.status.SetStatus(time.Now().Format(time.TimeOnly))
-		_ = m.processes[0].SetStatus(fmt.Sprintf("%d", m.counter*2))
-		_ = m.processes[1].SetStatus(fmt.Sprintf("%d", m.counter*3))
-		return m, m.tick()
 
 	case error:
 		m.err = msg
@@ -74,6 +76,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "esc", "ctrl+c":
+			// TODO: set state in each element
 			m.quitting = true
 			return m, tea.Quit
 		default:
@@ -100,15 +103,13 @@ func (m *model) View() string {
 		str.WriteString("\n")
 	}
 
-	if m.quitting {
-		str.WriteString("\n")
-	}
 	return str.String()
 }
 
 func (m *model) tick() tea.Cmd {
-	t1 := tea.Tick(time.Second*1, func(t time.Time) tea.Msg {
-		return tickMsg(t)
-	})
-	return tea.Batch(t1, m.status.Init(), m.processes[0].Init(), m.processes[1].Init())
+	cmds := []tea.Cmd{m.status.Init()}
+	for _, p := range m.processes {
+		cmds = append(cmds, p.Init())
+	}
+	return tea.Batch(cmds...)
 }

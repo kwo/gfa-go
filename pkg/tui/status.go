@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"sync"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -9,6 +10,7 @@ import (
 
 type StatusLine struct {
 	id     string
+	lock   *sync.Mutex
 	status string
 	style  lipgloss.Style
 }
@@ -21,6 +23,7 @@ type StatusMsg struct {
 func NewStatusLine(id string) *StatusLine {
 	return &StatusLine{
 		id:     id,
+		lock:   &sync.Mutex{},
 		status: "",
 	}
 }
@@ -30,10 +33,14 @@ func (z *StatusLine) ID() string {
 }
 
 func (z *StatusLine) GetStatus() string {
+	z.lock.Lock()
+	defer z.lock.Unlock()
 	return z.status
 }
 
 func (z *StatusLine) SetStatus(status string) *StatusLine {
+	z.lock.Lock()
+	defer z.lock.Unlock()
 	z.status = status
 	return z
 }

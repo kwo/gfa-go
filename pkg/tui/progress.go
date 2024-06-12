@@ -2,6 +2,7 @@ package tui
 
 import (
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -12,6 +13,7 @@ import (
 type ProgressLine struct {
 	id      string
 	spinner spinner.Model
+	lock    *sync.Mutex
 	status  string
 	style   lipgloss.Style
 }
@@ -26,6 +28,7 @@ func NewProgressLine(id string) *ProgressLine {
 	return &ProgressLine{
 		id:      id,
 		spinner: spinner.New(),
+		lock:    &sync.Mutex{},
 		status:  "",
 	}
 }
@@ -35,10 +38,14 @@ func (z *ProgressLine) ID() string {
 }
 
 func (z *ProgressLine) GetStatus() string {
+	z.lock.Lock()
+	defer z.lock.Unlock()
 	return z.status
 }
 
 func (z *ProgressLine) SetStatus(status string) *ProgressLine {
+	z.lock.Lock()
+	defer z.lock.Unlock()
 	z.status = status
 	return z
 }
