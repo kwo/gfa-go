@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 
 	"github.com/kwo/gitterbug/pkg/git"
@@ -31,10 +32,14 @@ func main() {
 		cancelFn(t.Run(ctx))
 	}()
 
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
 	go func() {
-		git.Run(ctx, t)
+		defer wg.Done()
+		cancelFn(git.Run(ctx, t))
 	}()
 
+	wg.Wait()
 	<-ctx.Done()
 	if err := context.Cause(ctx); err != nil && !errors.Is(err, context.Canceled) {
 		slog.ErrorContext(ctx, "tui exit", "err", err)
