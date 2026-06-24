@@ -10,6 +10,12 @@ Build the local binary:
 make build
 ```
 
+Build with an explicit version string:
+
+```sh
+make build VERSION=v1.2.3
+```
+
 The binary is written to:
 
 ```text
@@ -39,15 +45,24 @@ make clean
 Examples:
 
 ```sh
-GOOS=darwin GOARCH=arm64 go build -o dist/gfa_darwin_arm64 ./cmd/gfa
-GOOS=darwin GOARCH=amd64 go build -o dist/gfa_darwin_amd64 ./cmd/gfa
-GOOS=linux GOARCH=amd64 go build -o dist/gfa_linux_amd64 ./cmd/gfa
-GOOS=linux GOARCH=arm64 go build -o dist/gfa_linux_arm64 ./cmd/gfa
+GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags "-s -w -X main.buildVersion=v1.2.3" -o dist/gfa_darwin_arm64 ./cmd/gfa
+GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.buildVersion=v1.2.3" -o dist/gfa_darwin_amd64 ./cmd/gfa
+GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.buildVersion=v1.2.3" -o dist/gfa_linux_amd64 ./cmd/gfa
+GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w -X main.buildVersion=v1.2.3" -o dist/gfa_linux_arm64 ./cmd/gfa
 ```
 
-## Planned release workflow
+## Release workflow
 
-Tagged releases should eventually publish platform archives and checksums, for example:
+Tagged releases publish platform archives and checksums via GitHub Actions.
+
+Example:
+
+```sh
+git tag v1.2.3
+git push origin v1.2.3
+```
+
+The release workflow publishes:
 
 - `gfa_<version>_darwin_arm64.tar.gz`
 - `gfa_<version>_darwin_amd64.tar.gz`
