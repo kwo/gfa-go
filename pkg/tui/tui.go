@@ -22,6 +22,15 @@ type progressStatusMsg struct {
 	Status string
 }
 
+type setReposMsg struct {
+	Repos []RepoState
+}
+
+type repoUpdateMsg struct {
+	Directory string
+	Update    RepoUpdate
+}
+
 func New() *TUI {
 	updates := make(chan tea.Msg, 1024)
 	status := NewStatusLine("s1").SetStatus("ready")
@@ -57,6 +66,14 @@ func (z *TUI) AddProcess() *ProgressLine {
 	return NewProgressLineHandle(id, z.dispatch)
 }
 
+func (z *TUI) SetRepos(repos []RepoState) {
+	z.dispatch(setReposMsg{Repos: repos})
+}
+
+func (z *TUI) UpdateRepo(directory string, update RepoUpdate) {
+	z.dispatch(repoUpdateMsg{Directory: directory, Update: update})
+}
+
 func (z *TUI) dispatch(msg tea.Msg) {
 	z.updates <- msg
 }
@@ -64,6 +81,7 @@ func (z *TUI) dispatch(msg tea.Msg) {
 type model struct {
 	status    *StatusLine
 	processes []*ProgressLine
+	repos     []RepoState
 	updates   <-chan tea.Msg
 	quitting  bool
 	err       error
@@ -92,6 +110,19 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		for _, process := range m.processes {
 			if process.ID() == msg.ID {
 				process.SetStatus(msg.Status)
+				break
+			}
+		}
+		return m, m.waitForUpdate()
+
+	case setReposMsg:
+		m.repos = msg.Repos
+		return m, m.waitForUpdate()
+
+	case repoUpdateMsg:
+		for i, repo := range m.repos {
+			if repo.Directory == msg.Directory {
+				m.repos[i] = applyRepoUpdate(repo, msg.Update)
 				break
 			}
 		}
@@ -134,6 +165,11 @@ func (m *model) View() string {
 
 	str := &strings.Builder{}
 
+	if len(m.repos) > 0 {
+		str.WriteString(renderRepoTable(m.repos))
+		str.WriteString("\n\n")
+	}
+
 	str.WriteString(m.status.View())
 	str.WriteString("\n")
 
@@ -143,6 +179,22 @@ func (m *model) View() string {
 	}
 
 	return str.String()
+}
+
+func applyRepoUpdate(repo RepoState, update RepoUpdate) RepoState {
+	if update.Branch != nil {
+		repo.Branch = *update.Branch
+	}
+	if update.Status != nil {
+		repo.Status = *update.Status
+	}
+	if update.Remote != nil {
+		repo.Remote = *update.Remote
+	}
+	if update.Action != nil {
+		repo.Action = *update.Action
+	}
+	return repo
 }
 
 func (m *model) waitForUpdate() tea.Cmd {

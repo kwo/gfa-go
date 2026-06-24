@@ -67,6 +67,8 @@ Success criteria:
 
 ### Phase 1: Introduce repository state
 
+Status: completed in the first porting pass. The TUI now owns repository rows as state and renders a table from `RepoState` values. Worker updates are addressable by directory.
+
 Add a repository model equivalent to GFA's `RepoState`:
 
 ```go
