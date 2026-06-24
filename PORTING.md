@@ -144,7 +144,7 @@ Success criteria:
 
 ### Phase 5: Build and release parity
 
-Status: in progress. Local build/test targets and build documentation are in place. Release automation and Homebrew formula generation remain.
+Status: completed. Local build/test targets, build documentation, tagged release automation, and Homebrew formula generation are in place.
 
 Add Go-native release tooling:
 

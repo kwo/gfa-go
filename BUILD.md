@@ -72,6 +72,35 @@ The release workflow publishes:
 
 Each archive should extract a single executable named `gfa`.
 
+## Generate the Homebrew formula
+
+From this repository, generate a ready-to-commit `gfa.rb` formula on stdout.
+
+Latest stable release:
+
+```sh
+scripts/homebrew-formula
+```
+
+Specific tag:
+
+```sh
+scripts/homebrew-formula --tag v1.2.3
+```
+
+The script:
+
+- uses `gh release list` to select the latest published non-draft, non-prerelease release by default
+- downloads and parses the release `SHA256SUMS`
+- generates a formula with platform-specific URLs and checksums
+- fails if `gh` is missing or required checksums are unavailable
+
 ## Homebrew tap
 
 The existing TypeScript `gfa` release uses the `kwo/homebrew-tools` tap. The Go replacement should update the same `gfa.rb` formula once the first Go release is published.
+
+Example:
+
+```sh
+scripts/homebrew-formula --tag v1.2.3 > ../homebrew-tools/gfa.rb
+```

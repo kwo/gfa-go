@@ -1,0 +1,136 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo="kwo/gfa"
+tag=""
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  scripts/homebrew-formula [--tag v1.2.3]
+
+Generate a Homebrew formula for the Go gfa release.
+
+Requires:
+  gh
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --tag)
+      tag="${2:-}"
+      if [[ -z "$tag" ]]; then
+        echo "error: --tag requires a value" >&2
+        exit 1
+      fi
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "error: unknown argument: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+done
+
+if ! command -v gh >/dev/null 2>&1; then
+  echo "error: gh is required" >&2
+  exit 1
+fi
+
+if [[ -z "$tag" ]]; then
+  tag="$(gh release list \
+    --repo "$repo" \
+    --json tagName,isDraft,isPrerelease \
+    --jq '.[] | select(.isDraft == false and .isPrerelease == false) | .tagName' \
+    | head -n 1)"
+fi
+
+if [[ -z "$tag" ]]; then
+  echo "error: no release tag found" >&2
+  exit 1
+fi
+
+version="${tag#v}"
+tmpdir="$(mktemp -d)"
+trap 'rm -rf "$tmpdir"' EXIT
+
+gh release download "$tag" \
+  --repo "$repo" \
+  --pattern SHA256SUMS \
+  --dir "$tmpdir" \
+  --clobber >/dev/null
+
+sums="$tmpdir/SHA256SUMS"
+if [[ ! -s "$sums" ]]; then
+  echo "error: SHA256SUMS missing for $tag" >&2
+  exit 1
+fi
+
+sha_for() {
+  local asset="$1"
+  awk -v asset="$asset" '$2 == asset { print $1 }' "$sums"
+}
+
+asset_darwin_arm64="gfa_${tag}_darwin_arm64.tar.gz"
+asset_darwin_amd64="gfa_${tag}_darwin_amd64.tar.gz"
+asset_linux_arm64="gfa_${tag}_linux_arm64.tar.gz"
+asset_linux_amd64="gfa_${tag}_linux_amd64.tar.gz"
+
+sha_darwin_arm64="$(sha_for "$asset_darwin_arm64")"
+sha_darwin_amd64="$(sha_for "$asset_darwin_amd64")"
+sha_linux_arm64="$(sha_for "$asset_linux_arm64")"
+sha_linux_amd64="$(sha_for "$asset_linux_amd64")"
+
+for pair in \
+  "darwin arm64:$sha_darwin_arm64" \
+  "darwin amd64:$sha_darwin_amd64" \
+  "linux arm64:$sha_linux_arm64" \
+  "linux amd64:$sha_linux_amd64"
+do
+  if [[ "${pair#*:}" == "" ]]; then
+    echo "error: missing checksum for ${pair%:*}" >&2
+    exit 1
+  fi
+done
+
+cat <<FORMULA
+class Gfa < Formula
+  desc "Fetch and update Git repositories in a directory"
+  homepage "https://github.com/$repo"
+  version "$version"
+
+  on_macos do
+    if Hardware::CPU.arm?
+      url "https://github.com/$repo/releases/download/$tag/$asset_darwin_arm64"
+      sha256 "$sha_darwin_arm64"
+    else
+      url "https://github.com/$repo/releases/download/$tag/$asset_darwin_amd64"
+      sha256 "$sha_darwin_amd64"
+    end
+  end
+
+  on_linux do
+    if Hardware::CPU.arm?
+      url "https://github.com/$repo/releases/download/$tag/$asset_linux_arm64"
+      sha256 "$sha_linux_arm64"
+    else
+      url "https://github.com/$repo/releases/download/$tag/$asset_linux_amd64"
+      sha256 "$sha_linux_amd64"
+    end
+  end
+
+  def install
+    bin.install "gfa"
+  end
+
+  test do
+    assert_match "$tag", shell_output("#{bin}/gfa --version")
+  end
+end
+FORMULA
