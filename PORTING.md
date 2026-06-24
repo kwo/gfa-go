@@ -88,6 +88,8 @@ Success criteria:
 
 ### Phase 2: Match GFA scanning behavior
 
+Status: completed in the second porting pass. Scanning now returns `.` when the current directory is a Git repository, otherwise immediate child directories only.
+
 Implement scanner behavior:
 
 - read current working directory

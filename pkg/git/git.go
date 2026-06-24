@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path"
 	"sync"
 	"time"
 
@@ -14,34 +13,16 @@ import (
 func Run(ctx context.Context, ui *tui.TUI) error {
 	ui.SetStatus("finding git repositories...")
 
-	// TODO recursívely walk subdirs to add git repos including current dir
-
-	// get current directory
 	currdir, err := os.Getwd()
 	if err != nil {
 		ui.SetStatus("failed to get current directory")
 		return err
 	}
 
-	// read files in current directory
-	entries, err := os.ReadDir(currdir)
+	repos, err := scanDirectories(".")
 	if err != nil {
 		ui.SetStatus("failed to list files in current directory")
 		return err
-	}
-
-	repos := make([]tui.RepoState, 0, len(entries))
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		repos = append(repos, tui.RepoState{
-			Directory: entry.Name(),
-			Branch:    "...",
-			Status:    "...",
-			Remote:    "...",
-			Action:    "...",
-		})
 	}
 	ui.SetRepos(repos)
 
@@ -61,8 +42,7 @@ func Run(ctx context.Context, ui *tui.TUI) error {
 					Action: tui.StringValue("checking"),
 				})
 
-				// check for git subfolder
-				if fi, err := os.Stat(path.Join(repo.Directory, ".git")); err != nil || !fi.IsDir() {
+				if !isGitRepo(repo.Directory) {
 					ui.UpdateRepo(repo.Directory, tui.RepoUpdate{
 						Branch: tui.StringValue(""),
 						Status: tui.StringValue("no git"),
