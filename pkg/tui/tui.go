@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"sync/atomic"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -41,6 +42,7 @@ func New() *TUI {
 	return &TUI{
 		m:       m,
 		updates: updates,
+		ready:   make(chan struct{}),
 	}
 }
 
@@ -48,12 +50,34 @@ type TUI struct {
 	m             *model
 	updates       chan tea.Msg
 	nextProcessID atomic.Int64
+	programMu     sync.Mutex
+	program       *tea.Program
+	ready         chan struct{}
 }
 
 func (z *TUI) Run(ctx context.Context) error {
 	p := tea.NewProgram(z.m, tea.WithContext(ctx))
+	z.programMu.Lock()
+	z.program = p
+	close(z.ready)
+	z.programMu.Unlock()
+	defer func() {
+		z.programMu.Lock()
+		z.program = nil
+		z.programMu.Unlock()
+	}()
+
 	_, err := p.Run()
 	return err
+}
+
+func (z *TUI) Quit() {
+	<-z.ready
+	z.programMu.Lock()
+	defer z.programMu.Unlock()
+	if z.program != nil {
+		z.program.Quit()
+	}
 }
 
 func (z *TUI) SetStatus(status string) {

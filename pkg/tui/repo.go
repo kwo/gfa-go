@@ -4,7 +4,13 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 )
+
+func init() {
+	lipgloss.SetColorProfile(termenv.ANSI)
+	lipgloss.SetHasDarkBackground(true)
+}
 
 type RepoState struct {
 	Directory string

@@ -28,8 +28,11 @@ func main() {
 
 	t := tui.New()
 	t.SetStatus("ready")
+	tuiErr := make(chan error, 1)
 	go func() {
-		cancelFn(t.Run(ctx))
+		err := t.Run(ctx)
+		cancelFn(err)
+		tuiErr <- err
 	}()
 
 	wg := &sync.WaitGroup{}
@@ -40,9 +43,14 @@ func main() {
 	}()
 
 	wg.Wait()
+	t.Quit()
 	<-ctx.Done()
-	if err := context.Cause(ctx); err != nil && !errors.Is(err, context.Canceled) {
+	if err := <-tuiErr; err != nil && !errors.Is(err, context.Canceled) {
 		slog.ErrorContext(ctx, "tui exit", "err", err)
+		os.Exit(1)
+	}
+	if err := context.Cause(ctx); err != nil && !errors.Is(err, context.Canceled) {
+		slog.ErrorContext(ctx, "gfa exit", "err", err)
 		os.Exit(1)
 	}
 	slog.InfoContext(ctx, "done")
