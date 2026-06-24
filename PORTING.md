@@ -104,7 +104,7 @@ Success criteria:
 
 ### Phase 3: Port Git operations
 
-Status: completed in the third porting pass. Per-repository processing now runs the GFA Git command sequence, captures dirty/clean and remote state, fetches, and pulls only when clean and behind.
+Status: completed in the third porting pass. Per-repository processing now runs the GFA Git command sequence, captures dirty/clean and remote state, fetches, and pulls only when clean and behind. The Go port intentionally uses `git pull --ff-only` to avoid unattended merge commits or conflict states during batch updates.
 
 Port the GFA per-repository workflow:
 
@@ -114,7 +114,7 @@ Port the GFA per-repository workflow:
 4. check whether remotes exist
 5. fetch all remotes/tags with prune flags
 6. parse remote tracking state from `git --no-pager branch -vv`
-7. pull only when the repository is clean and behind upstream
+7. pull with `--ff-only` only when the repository is clean and behind upstream
 
 Success criteria:
 
@@ -122,7 +122,7 @@ Success criteria:
 - dirty repository shows `dirty` and never pulls
 - repository without remote shows `no remotes`
 - repository without upstream shows `no remote branch`
-- behind clean repository pulls
+- behind clean repository pulls only when the update can fast-forward
 - Git errors are captured per row without aborting all processing
 
 ### Phase 4: Replace spinner output with table output

@@ -81,7 +81,7 @@ func processRepo(ctx context.Context, ui *tui.TUI, repo tui.RepoState) {
 		return
 	}
 
-	_, err = runGit(ctx, repo.Directory, "pull")
+	_, err = runGit(ctx, repo.Directory, "pull", "--ff-only")
 	if err != nil {
 		setRepoError(ui, repo.Directory, err)
 		return
