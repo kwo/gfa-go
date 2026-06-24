@@ -11,11 +11,12 @@ import (
 )
 
 type ProgressLine struct {
-	id      string
-	spinner spinner.Model
-	lock    *sync.Mutex
-	status  string
-	style   lipgloss.Style
+	id       string
+	spinner  spinner.Model
+	lock     *sync.Mutex
+	status   string
+	style    lipgloss.Style
+	dispatch func(tea.Msg)
 }
 
 type ProgressMsg struct {
@@ -33,6 +34,12 @@ func NewProgressLine(id string) *ProgressLine {
 	}
 }
 
+func NewProgressLineHandle(id string, dispatch func(tea.Msg)) *ProgressLine {
+	line := NewProgressLine(id)
+	line.dispatch = dispatch
+	return line
+}
+
 func (z *ProgressLine) ID() string {
 	return z.id
 }
@@ -44,6 +51,11 @@ func (z *ProgressLine) GetStatus() string {
 }
 
 func (z *ProgressLine) SetStatus(status string) *ProgressLine {
+	if z.dispatch != nil {
+		z.dispatch(progressStatusMsg{ID: z.id, Status: status})
+		return z
+	}
+
 	z.lock.Lock()
 	defer z.lock.Unlock()
 	z.status = status

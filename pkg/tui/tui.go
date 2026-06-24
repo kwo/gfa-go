@@ -4,23 +4,41 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync/atomic"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-func New() *TUI {
-	// https://github.com/charmbracelet/lipgloss
-	// statusStyle := lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "12", Dark: "5"})
+type statusUpdateMsg struct {
+	Status string
+}
 
-	status := NewStatusLine("s1").SetStatus("ready") //.SetStyle(statusStyle)
+type addProcessMsg struct {
+	ID string
+}
+
+type progressStatusMsg struct {
+	ID     string
+	Status string
+}
+
+func New() *TUI {
+	updates := make(chan tea.Msg, 1024)
+	status := NewStatusLine("s1").SetStatus("ready")
 	m := &model{
-		status: status,
+		status:  status,
+		updates: updates,
 	}
-	return &TUI{m: m}
+	return &TUI{
+		m:       m,
+		updates: updates,
+	}
 }
 
 type TUI struct {
-	m *model
+	m             *model
+	updates       chan tea.Msg
+	nextProcessID atomic.Int64
 }
 
 func (z *TUI) Run(ctx context.Context) error {
@@ -30,33 +48,54 @@ func (z *TUI) Run(ctx context.Context) error {
 }
 
 func (z *TUI) SetStatus(status string) {
-	z.m.status.SetStatus(status)
+	z.dispatch(statusUpdateMsg{Status: status})
 }
 
 func (z *TUI) AddProcess() *ProgressLine {
-	i := len(z.m.processes)
-	p := NewProgressLine(fmt.Sprintf("p%d", i+1))
-	z.m.processes = append(z.m.processes, p)
-	return p
+	id := fmt.Sprintf("p%d", z.nextProcessID.Add(1))
+	z.dispatch(addProcessMsg{ID: id})
+	return NewProgressLineHandle(id, z.dispatch)
+}
+
+func (z *TUI) dispatch(msg tea.Msg) {
+	z.updates <- msg
 }
 
 type model struct {
 	status    *StatusLine
 	processes []*ProgressLine
+	updates   <-chan tea.Msg
 	quitting  bool
 	err       error
 }
 
 func (m *model) Init() tea.Cmd {
-	return m.tick()
+	return tea.Batch(m.status.Init(), m.waitForUpdate())
 }
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-
 	case error:
 		m.err = msg
 		return m, nil
+
+	case statusUpdateMsg:
+		m.status.SetStatus(msg.Status)
+		return m, m.waitForUpdate()
+
+	case addProcessMsg:
+		process := NewProgressLine(msg.ID)
+		m.processes = append(m.processes, process)
+		return m, tea.Batch(process.Init(), m.waitForUpdate())
+
+	case progressStatusMsg:
+		for _, process := range m.processes {
+			if process.ID() == msg.ID {
+				process.SetStatus(msg.Status)
+				break
+			}
+		}
+		return m, m.waitForUpdate()
 
 	case StatusMsg:
 		model, cmd := m.status.Update(msg)
@@ -106,10 +145,8 @@ func (m *model) View() string {
 	return str.String()
 }
 
-func (m *model) tick() tea.Cmd {
-	cmds := []tea.Cmd{m.status.Init()}
-	for _, p := range m.processes {
-		cmds = append(cmds, p.Init())
+func (m *model) waitForUpdate() tea.Cmd {
+	return func() tea.Msg {
+		return <-m.updates
 	}
-	return tea.Batch(cmds...)
 }
