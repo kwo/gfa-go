@@ -104,6 +104,8 @@ Success criteria:
 
 ### Phase 3: Port Git operations
 
+Status: completed in the third porting pass. Per-repository processing now runs the GFA Git command sequence, captures dirty/clean and remote state, fetches, and pulls only when clean and behind.
+
 Port the GFA per-repository workflow:
 
 1. check whether the directory is a Git repository
