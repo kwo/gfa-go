@@ -9,8 +9,8 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/kwo/gitterbug/pkg/git"
-	"github.com/kwo/gitterbug/pkg/tui"
+	"github.com/kwo/gfa/pkg/git"
+	"github.com/kwo/gfa/pkg/tui"
 )
 
 func main() {

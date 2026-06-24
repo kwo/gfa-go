@@ -1,4 +1,4 @@
-module github.com/kwo/gitterbug
+module github.com/kwo/gfa
 
 go 1.22.4
 

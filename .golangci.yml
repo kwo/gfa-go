@@ -37,7 +37,7 @@ linters-settings:
     sections:
       - standard
       - default
-      - prefix(github.com/kwo/gitterbug)
+      - prefix(github.com/kwo/gfa)
   maintidx:
     # Show functions with maintainability index lower than N.
     # A high index indicates better maintainability (it's kind of the opposite of complexity).

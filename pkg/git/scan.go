@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/kwo/gitterbug/pkg/tui"
+	"github.com/kwo/gfa/pkg/tui"
 )
 
 func scanDirectories(dir string) ([]tui.RepoState, error) {

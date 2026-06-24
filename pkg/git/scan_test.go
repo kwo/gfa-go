@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/kwo/gitterbug/pkg/tui"
+	"github.com/kwo/gfa/pkg/tui"
 )
 
 func TestScanDirectoriesUsesCurrentDirectoryWhenItIsGitRepo(t *testing.T) {

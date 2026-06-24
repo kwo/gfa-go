@@ -6,7 +6,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/kwo/gitterbug/pkg/tui"
+	"github.com/kwo/gfa/pkg/tui"
 )
 
 func Run(ctx context.Context, ui *tui.TUI) error {

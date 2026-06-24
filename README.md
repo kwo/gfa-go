@@ -16,6 +16,14 @@ go run ./cmd/gfa --version
 go run ./cmd/gfa -v
 ```
 
+## Build
+
+```sh
+make build
+```
+
+See [BUILD.md](BUILD.md) for build and release maintenance notes.
+
 ## Current status
 
 This repository is being ported from the TypeScript/Ink `gfa` implementation. See [PORTING.md](PORTING.md) for the parity plan and remaining release work.

@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/kwo/gitterbug/pkg/tui"
+	"github.com/kwo/gfa/pkg/tui"
 )
 
 func processRepo(ctx context.Context, ui *tui.TUI, repo tui.RepoState) {
