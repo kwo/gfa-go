@@ -1,6 +1,21 @@
-# Gitterbug
+# gfa
+
+Go implementation of `gfa`, a command-line tool that discovers Git repositories in the current directory, fetches all remotes, reports repository state, and pulls when safe.
+
+## Development
 
 ```sh
-go run github.com/kwo/gitterbug/cmd/gitterbug
-````
+go run ./cmd/gfa
+```
 
+Show version information:
+
+```sh
+go run ./cmd/gfa --version
+# or
+go run ./cmd/gfa -v
+```
+
+## Current status
+
+This repository is being ported from the TypeScript/Ink `gfa` implementation. See [PORTING.md](PORTING.md) for the parity plan and remaining release work.

@@ -1,10 +1,10 @@
-# Porting GFA to Gitterbug
+# Porting GFA to Go
 
-This document tracks the work needed to bring `gitterbug` up to parity with `gfa`.
+This document tracks the work needed to make this Go project a drop-in replacement for the TypeScript/Ink `gfa`.
 
 ## Current state
 
-`gitterbug` is a Go/Charm prototype. It has:
+The restored project started as `gitterbug`, a Go/Charm prototype. It has:
 
 - a Go CLI entrypoint
 - `--help`, `--version`, and configurable log level
@@ -155,10 +155,8 @@ Add Go-native release tooling:
 Success criteria:
 
 - tagged release can produce installable binaries
-- Homebrew tap can install `gitterbug` or renamed `gfa` replacement
+- Homebrew tap can install the Go `gfa` replacement
 
-## Open naming decision
+## Naming decision
 
-Before release work, decide whether the Go port remains `gitterbug` or becomes the Go implementation of `gfa`.
-
-For now, keep the code and module named `gitterbug` and focus on behavioral parity.
+The Go port should be a drop-in `gfa` replacement. The command entrypoint is `cmd/gfa`. The module path still uses the restored repository name for now; a repository/module rename can be handled separately if the source repository is renamed.

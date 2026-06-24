@@ -40,5 +40,5 @@ func version(extended bool) string {
 			return revision
 		}
 	}
-	return "unknown"
+	return "dev"
 }

@@ -26,7 +26,7 @@ func initOptions(verbosity *slog.LevelVar) (*Options, bool) {
 
 	// print version and exit
 	if opts.PrintVersion {
-		fmt.Println(version(true))
+		fmt.Println(version(false))
 		return nil, false
 	}
 
@@ -48,8 +48,8 @@ func getOptions() (*Options, error) {
 
 // see https://pkg.go.dev/github.com/jessevdk/go-flags#hdr-Available_field_tags
 type Options struct {
-	PrintVersion bool   `                                          long:"version"  description:"print version and exit"`
-	Verbosity    string `default:"INFO"  env:"GITTERBUG_LOGLEVEL"  long:"loglevel" description:"set the verbosity level" choice:"ERROR" choice:"WARN" choice:"INFO" choice:"DEBUG"`
+	PrintVersion bool   `                                          short:"v" long:"version"  description:"print version and exit"`
+	Verbosity    string `default:"INFO"  env:"GFA_LOGLEVEL"  long:"loglevel" description:"set the verbosity level" choice:"ERROR" choice:"WARN" choice:"INFO" choice:"DEBUG"`
 }
 
 func (o *Options) SetLogLevel(l *slog.LevelVar) {
