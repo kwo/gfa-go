@@ -127,6 +127,8 @@ Success criteria:
 
 ### Phase 4: Replace spinner output with table output
 
+Status: completed in the fourth porting pass. The main repository path now renders a GFA-like table with dynamic widths, header styling, status/remote/action colors, stable row order, and a final status line.
+
 Render a GFA-like table in Bubble Tea/Lip Gloss:
 
 - dynamic column widths

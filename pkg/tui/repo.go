@@ -68,11 +68,11 @@ func renderRepoTable(repos []RepoState) string {
 	b.WriteString("\n")
 
 	for _, repo := range repos {
-		writeCell(&b, repo.Directory, widths[directoryColumn])
+		writeCell(&b, directoryStyle.Render(repo.Directory), widths[directoryColumn])
 		writeCell(&b, repo.Branch, widths[branchColumn])
-		writeCell(&b, repo.Status, widths[statusColumn])
-		writeCell(&b, repo.Remote, widths[remoteColumn])
-		writeCell(&b, repo.Action, widths[actionColumn])
+		writeCell(&b, statusStyle(repo.Status).Render(repo.Status), widths[statusColumn])
+		writeCell(&b, remoteStyle(repo.Remote).Render(repo.Remote), widths[remoteColumn])
+		writeCell(&b, actionStyle(repo.Action).Render(repo.Action), widths[actionColumn])
 		b.WriteString("\n")
 	}
 
@@ -88,4 +88,44 @@ func writeCell(b *strings.Builder, value string, width int) {
 	b.WriteString(strings.Repeat(" ", padding))
 }
 
-var headerStyle = lipgloss.NewStyle().Bold(true)
+var (
+	headerStyle    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("6"))
+	directoryStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
+	greenStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
+	yellowStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
+	redStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
+	defaultStyle   = lipgloss.NewStyle()
+)
+
+func statusStyle(status string) lipgloss.Style {
+	switch {
+	case strings.Contains(status, "error"):
+		return redStyle
+	case status == "clean":
+		return greenStyle
+	case status == "dirty" || status == "no git":
+		return yellowStyle
+	default:
+		return defaultStyle
+	}
+}
+
+func remoteStyle(remote string) lipgloss.Style {
+	switch {
+	case strings.Contains(remote, "behind"):
+		return yellowStyle
+	case remote == "up-to-date":
+		return greenStyle
+	case strings.Contains(remote, "no remote"):
+		return yellowStyle
+	default:
+		return defaultStyle
+	}
+}
+
+func actionStyle(action string) lipgloss.Style {
+	if action == "pulled" || action == "fetched" {
+		return greenStyle
+	}
+	return defaultStyle
+}
