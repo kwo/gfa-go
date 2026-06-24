@@ -12,8 +12,14 @@ Show version information:
 
 ```sh
 go run ./cmd/gfa --version
-# or
-go run ./cmd/gfa -v
+```
+
+Increase log verbosity with repeated `-v` flags:
+
+```sh
+go run ./cmd/gfa -v    # WARN
+go run ./cmd/gfa -vv   # INFO
+go run ./cmd/gfa -vvv  # DEBUG
 ```
 
 ## Build

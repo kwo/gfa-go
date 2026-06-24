@@ -48,19 +48,19 @@ func getOptions() (*Options, error) {
 
 // see https://pkg.go.dev/github.com/jessevdk/go-flags#hdr-Available_field_tags
 type Options struct {
-	PrintVersion bool   `                                          short:"v" long:"version"  description:"print version and exit"`
-	Verbosity    string `default:"INFO"  env:"GFA_LOGLEVEL"  long:"loglevel" description:"set the verbosity level" choice:"ERROR" choice:"WARN" choice:"INFO" choice:"DEBUG"`
+	PrintVersion bool   `long:"version" description:"print version and exit"`
+	Verbose      []bool `short:"v" long:"verbose" description:"increase verbosity (repeatable)"`
 }
 
 func (o *Options) SetLogLevel(l *slog.LevelVar) {
-	switch o.Verbosity {
-	case "ERROR":
+	switch len(o.Verbose) {
+	case 0:
 		l.Set(slog.LevelError)
-	case "WARN":
+	case 1:
 		l.Set(slog.LevelWarn)
-	case "INFO":
+	case 2:
 		l.Set(slog.LevelInfo)
-	case "DEBUG":
+	default:
 		l.Set(slog.LevelDebug)
 	}
 }
