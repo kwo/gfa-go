@@ -3,50 +3,74 @@ package git
 import (
 	"context"
 	"fmt"
-	"os"
 	"sync"
 
 	"github.com/kwo/gfa/pkg/tui"
 )
 
-func Run(ctx context.Context, ui *tui.TUI) error {
+type Options struct {
+	SwitchDefaultBranch  bool
+	DeleteMergedBranches bool
+	RestorePackageLock   bool
+}
+
+type Reporter interface {
+	SetStatus(string)
+	SetRepos([]tui.RepoState)
+	UpdateRepo(string, tui.RepoUpdate)
+}
+
+func Run(ctx context.Context, ui Reporter, options Options) error {
 	ui.SetStatus("finding git repositories...")
-
-	currdir, err := os.Getwd()
-	if err != nil {
-		ui.SetStatus("failed to get current directory")
-		return err
-	}
-
 	repos, err := scanDirectories(".")
 	if err != nil {
-		ui.SetStatus("failed to list files in current directory")
-		return err
+		return fmt.Errorf("list directories: %w", err)
 	}
 	ui.SetRepos(repos)
-
-	ui.SetStatus("loading repositories...")
-
-	wg := &sync.WaitGroup{}
-	for _, repo := range repos {
-		select {
-		case <-ctx.Done():
-			return nil
-		default:
-			wg.Add(1)
-			go func(repo tui.RepoState) {
-				defer wg.Done()
-				processRepo(ctx, ui, repo)
-			}(repo)
-		}
-	} // entries
-
 	ui.SetStatus("processing repositories...")
 
+	// Limit simultaneous Git/network operations without stopping other rows
+	// when one repository fails.
+	jobs := make(chan int)
+	errs := make([]error, len(repos))
+	var wg sync.WaitGroup
+	for range min(8, len(repos)) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range jobs {
+				if ctx.Err() != nil {
+					continue
+				}
+				err := processRepo(ctx, ui, repos[i], options)
+				if err != nil {
+					setRepoError(ui, repos[i].Directory, err)
+					errs[i] = err
+				}
+			}
+		}()
+	}
+launch:
+	for i := range repos {
+		select {
+		case jobs <- i:
+		case <-ctx.Done():
+			break launch
+		}
+	}
+	close(jobs)
 	wg.Wait()
-	ui.SetStatus("processing complete")
-	if len(repos) == 0 {
-		ui.SetStatus(fmt.Sprintf("processing complete: no directories in %s", currdir))
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	failed := 0
+	for _, err := range errs {
+		if err != nil {
+			failed++
+		}
+	}
+	if failed > 0 {
+		return fmt.Errorf("%d repositories failed", failed)
 	}
 	return nil
 }

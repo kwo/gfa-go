@@ -13,7 +13,7 @@ func scanDirectories(dir string) ([]tui.RepoState, error) {
 		return nil, err
 	}
 
-	if hasGitDir(entries) {
+	if isGitRepo(dir) {
 		return []tui.RepoState{newRepoState(".")}, nil
 	}
 
@@ -30,16 +30,7 @@ func scanDirectories(dir string) ([]tui.RepoState, error) {
 
 func isGitRepo(dir string) bool {
 	info, err := os.Stat(filepath.Join(dir, ".git"))
-	return err == nil && info.IsDir()
-}
-
-func hasGitDir(entries []os.DirEntry) bool {
-	for _, entry := range entries {
-		if entry.IsDir() && entry.Name() == ".git" {
-			return true
-		}
-	}
-	return false
+	return err == nil && (info.IsDir() || info.Mode().IsRegular())
 }
 
 func newRepoState(directory string) tui.RepoState {

@@ -57,6 +57,15 @@ func TestIsGitRepo(t *testing.T) {
 	}
 }
 
+func TestScanDirectoriesRecognizesGitFiles(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, ".git"), "gitdir: /some/worktree/path\n")
+	repos, err := scanDirectories(dir)
+	if err != nil || len(repos) != 1 || repos[0].Directory != "." || !isGitRepo(dir) {
+		t.Fatalf("worktree not recognized: repos=%+v err=%v", repos, err)
+	}
+}
+
 func mustMkdir(t *testing.T, path string) {
 	t.Helper()
 	if err := os.MkdirAll(path, 0o700); err != nil {

@@ -1,164 +1,63 @@
-# Porting GFA to Go
+# Go port implementation
 
-This document tracks the work needed to make this Go project a drop-in replacement for the TypeScript/Ink `gfa`.
+The Go CLI supports the TypeScript GFA workflow and cleanup flags. The implementation keeps the installed Git executable as its Git backend.
 
-## Current state
+## Lifecycle
 
-The restored project started as `gitterbug`, a Go/Charm prototype. It has:
+The TUI owns the worker context. Workers send repository updates through a queue. A completion message follows all updates in that queue.
 
-- a Go CLI entrypoint
-- `--help`, `--version`, and configurable log level
-- Bubble Tea / Lip Gloss / Bubbles dependencies
-- signal-aware cancellation
-- a status line and per-directory spinner lines
-- immediate-child `.git` directory detection
-- concurrent processing scaffolding
+Normal completion exits Bubble Tea without cancellation. The CLI then prints the final report and returns the worker result. Cancellation stops the workers before the CLI exits.
 
-It does not yet implement the core `gfa` Git workflow.
+On Unix, each Git subprocess has its own process group. Cancellation kills that group, including child processes such as SSH and credential helpers.
 
-## GFA parity target
+## Display
 
-The TypeScript `gfa` currently provides:
+Column widths depend on the terminal width, not repository state. A repository update cannot move the columns.
 
-- scan current directory
-- if current directory is a Git repository, process `.`
-- otherwise process immediate child directories
-- detect Git repositories via `.git`
-- display a table with columns:
-  - directory
-  - branch
-  - working-tree status
-  - remote tracking status
-  - action
-- run Git operations per repository:
-  - `git branch --show-current`
-  - `git status --porcelain`
-  - `git remote`
-  - `git fetch --all --tags --prune --prune-tags --quiet`
-  - `git --no-pager branch -vv`
-  - `git pull` when safe
-- avoid pulling dirty repositories
-- avoid pulling repositories without remotes or upstream branches
-- process repositories in parallel
-- color-code output states
-- quit with `q`, Escape, or Ctrl-C
-- provide release/build/Homebrew tooling
+The renderer measures terminal cells rather than UTF-8 bytes. Table cells contain one line without terminal control codes. Long cells use an ellipsis.
 
-## Porting phases
+The live viewport responds to terminal resize events and keyboard scrolling. The final report includes all rows. Full errors and cleanup results appear outside the table.
 
-### Phase 0: Shore up the Bubble Tea model
+Redirected output bypasses Bubble Tea and prints one plain report. Color selection does not require terminal queries.
 
-Status: completed in the first cleanup pass. External TUI calls now dispatch Tea messages through the update loop instead of mutating model fields directly.
+## Git operations
 
-Before porting behavior, the TUI should follow Bubble Tea ownership rules:
+Repository discovery recognizes `.git` directories and files. It processes either the current repository or immediate child directories.
 
-- no direct mutation of Bubble Tea model state from worker goroutines
-- external updates should be sent as Tea messages
-- process rows should be added through model updates
-- status changes should flow through the update loop
-- per-process status changes should flow through the update loop
-- the public TUI API may remain small, but it should dispatch messages rather than mutate state directly
+A worker pool limits processing to eight repositories. Errors remain local to their rows. The command returns an error after the other repositories finish.
 
-Success criteria:
+Git status uses NUL-delimited porcelain output. Rename sources remain separate from destination paths. Restore commands treat paths as literals.
 
-- `go test ./...` passes
-- no externally-called method mutates `model.status` or `model.processes` directly
-- `git.Run` can continue using `ui.SetStatus`, `ui.AddProcess`, and `line.SetStatus`
+Upstream detection uses Git reference fields. Ahead/behind counts come from `git rev-list`, not human-readable branch descriptions.
 
-### Phase 1: Introduce repository state
+## Cleanup and safety
 
-Status: completed in the first porting pass. The TUI now owns repository rows as state and renders a table from `RepoState` values. Worker updates are addressable by directory.
+The CLI supports `-R`, `-s`, `-d`, and packed forms such as `-Rsd`. The `-v` alias prints the version. Repeatable `--verbose` flags retain the prototype verbosity levels.
 
-Add a repository model equivalent to GFA's `RepoState`:
+Lock-file restore skips changes to other files, renames, copies, and conflicts. It restores tracked lock files and removes untracked lock files only after that check.
 
-```go
-type RepoState struct {
-    Directory string
-    Branch    string
-    Status    string
-    Remote    string
-    Action    string
-}
-```
+Branch switching and branch deletion require a clean working tree. GFA checks the working tree again after a switch or pull because hooks can change files.
 
-Success criteria:
+Merged-branch cleanup compares local branches with the origin default branch. It excludes the current and default branches and uses `git branch -d` only.
 
-- TUI renders repository rows from state rather than free-form progress strings
-- row updates are addressable by directory or stable ID
+## Deliberate differences from TypeScript
 
-### Phase 2: Match GFA scanning behavior
+- Pulls always use `--ff-only`.
+- Linked worktrees are supported.
+- Concurrency is limited to eight repositories.
+- Repository errors produce exit code `1`.
+- Cancellation produces exit code `130`.
+- Unknown flags and positional arguments produce an error.
+- The display supports terminal resizing and scrolling.
 
-Status: completed in the second porting pass. Scanning now returns `.` when the current directory is a Git repository, otherwise immediate child directories only.
+## Verification
 
-Implement scanner behavior:
+Tests cover table sizing, Unicode, stable columns, multiline errors, scrolling, completion, and cancellation.
 
-- read current working directory
-- if current directory contains `.git`, process `.` only
-- otherwise process immediate child directories
-- preserve the existing note that recursive scanning can be added later, but do not silently change behavior beyond GFA parity
+Temporary Git fixtures cover clean, dirty, behind, diverged, detached, missing-upstream, and deleted-upstream states. Cleanup tests cover lock files, default-branch discovery, safe deletion, and linked worktrees.
 
-Success criteria:
+CLI tests build the executable and examine help, version aliases, packed flags, redirected output, final results, and error exits.
 
-- running in a Git repository shows one row for `.`
-- running in a parent directory shows one row per immediate child directory
+## Release boundary
 
-### Phase 3: Port Git operations
-
-Status: completed in the third porting pass. Per-repository processing now runs the GFA Git command sequence, captures dirty/clean and remote state, fetches, and pulls only when clean and behind. The Go port intentionally uses `git pull --ff-only` to avoid unattended merge commits or conflict states during batch updates.
-
-Port the GFA per-repository workflow:
-
-1. check whether the directory is a Git repository
-2. read current branch
-3. check dirty/clean status
-4. check whether remotes exist
-5. fetch all remotes/tags with prune flags
-6. parse remote tracking state from `git --no-pager branch -vv`
-7. pull with `--ff-only` only when the repository is clean and behind upstream
-
-Success criteria:
-
-- clean up-to-date repository shows `clean`, `up-to-date`, `fetched`
-- dirty repository shows `dirty` and never pulls
-- repository without remote shows `no remotes`
-- repository without upstream shows `no remote branch`
-- behind clean repository pulls only when the update can fast-forward
-- Git errors are captured per row without aborting all processing
-
-### Phase 4: Replace spinner output with table output
-
-Status: completed in the fourth porting pass. The main repository path now renders a GFA-like table with dynamic widths, header styling, status/remote/action colors, stable row order, and a final status line.
-
-Render a GFA-like table in Bubble Tea/Lip Gloss:
-
-- dynamic column widths
-- header row
-- color-coded status/remote/action cells
-- stable row ordering
-- final status line
-
-Success criteria:
-
-- visible output is functionally equivalent to GFA
-- no ANSI formatting leaks into business logic
-
-### Phase 5: Build and release parity
-
-Status: completed. Local build/test targets, build documentation, tagged release automation, and Homebrew formula generation are in place.
-
-Add Go-native release tooling:
-
-- build script or Makefile target
-- cross-compilation notes
-- GitHub Actions release workflow
-- checksums
-- Homebrew formula generation/update instructions
-
-Success criteria:
-
-- tagged release can produce installable binaries
-- Homebrew tap can install the Go `gfa` replacement
-
-## Naming decision
-
-The Go port should be a drop-in `gfa` replacement. The command entrypoint is `cmd/gfa`. The module path still uses the restored repository name for now; a repository/module rename can be handled separately if the source repository is renamed.
+Local implementation and verification do not publish a release or replace an installed executable. The existing release tooling targets GitHub, not Forgejo. Select the release destination before publication.

@@ -9,7 +9,7 @@ import (
 
 func initLogging() *slog.LevelVar {
 	verbosity := &slog.LevelVar{}
-	slog.SetDefault(slog.New(tint.NewHandler(os.Stdout, &tint.Options{
+	slog.SetDefault(slog.New(tint.NewHandler(os.Stderr, &tint.Options{
 		Level:   verbosity,
 		NoColor: true,
 		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {

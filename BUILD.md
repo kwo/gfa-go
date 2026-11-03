@@ -1,6 +1,6 @@
 # Build and Release Maintenance
 
-This document covers local builds and the planned release workflow for the Go `gfa` replacement.
+This document covers local builds and the existing GitHub release tooling for the Go `gfa` replacement.
 
 ## Local build
 
@@ -8,6 +8,12 @@ Build the local binary:
 
 ```sh
 make build
+```
+
+Without Make, build directly with Go:
+
+```sh
+go build -trimpath -o dist/gfa ./cmd/gfa
 ```
 
 Build with an explicit version string:
@@ -28,7 +34,7 @@ Run tests:
 make test
 ```
 
-Run linting, if `golangci-lint` is installed:
+With golangci-lint v2 installed, run linting:
 
 ```sh
 make lint
@@ -53,7 +59,9 @@ GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w -X main.buildVersion=
 
 ## Release workflow
 
-Tagged releases publish platform archives and checksums via GitHub Actions.
+CAUTION: This checkout uses Forgejo, but the existing release workflow and formula generator target GitHub. Do not publish until you select the release destination.
+
+The `.github/workflows/release.yml` workflow publishes platform archives and checksums through GitHub Actions. A tag pushed to Forgejo does not configure that GitHub workflow.
 
 Example:
 
@@ -70,7 +78,7 @@ The release workflow publishes:
 - `gfa_<version>_linux_arm64.tar.gz`
 - `SHA256SUMS`
 
-Each archive should extract a single executable named `gfa`.
+Each archive contains a single executable named `gfa`.
 
 ## Generate the Homebrew formula
 

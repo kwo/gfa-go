@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 
 	"github.com/jessevdk/go-flags"
 )
@@ -15,10 +16,10 @@ import (
 func initOptions(verbosity *slog.LevelVar) (*Options, bool) {
 	opts, err := getOptions()
 	if err != nil {
-		// don't log, already printed - slog.ErrorContext(ctx, "cannot load options", "err", err)
-		return nil, true // os.Exit(1)
+		fmt.Fprintln(os.Stderr, "gfa:", err)
+		return nil, true
 	} else if opts == nil {
-		return nil, false // help requests, just exit
+		return nil, false
 	}
 
 	// set log level
@@ -34,22 +35,34 @@ func initOptions(verbosity *slog.LevelVar) (*Options, bool) {
 }
 
 func getOptions() (*Options, error) {
+	return parseOptions(os.Args[1:])
+}
+
+func parseOptions(args []string) (*Options, error) {
 	opts := &Options{}
-	_, err := flags.Parse(opts)
+	parser := flags.NewParser(opts, flags.HelpFlag|flags.PassDoubleDash)
+	remaining, err := parser.ParseArgs(args)
 	if err != nil {
 		var e *flags.Error
 		if errors.As(err, &e) && e.Type == flags.ErrHelp {
-			return nil, nil // help requested
+			fmt.Println(e.Message)
+			return nil, nil
 		}
 		return nil, fmt.Errorf("cannot parse flags: %w", err)
+	}
+	if len(remaining) != 0 {
+		return nil, fmt.Errorf("unexpected arguments: %v", remaining)
 	}
 	return opts, nil
 }
 
 // see https://pkg.go.dev/github.com/jessevdk/go-flags#hdr-Available_field_tags
 type Options struct {
-	PrintVersion bool   `long:"version" description:"print version and exit"`
-	Verbose      []bool `short:"v" long:"verbose" description:"increase verbosity (repeatable)"`
+	PrintVersion         bool   `short:"v" long:"version" description:"print version and exit"`
+	Verbose              []bool `long:"verbose" description:"increase verbosity (repeatable)"`
+	SwitchDefaultBranch  bool   `short:"s" long:"switch-default-branch" description:"switch clean repositories to the origin default branch"`
+	DeleteMergedBranches bool   `short:"d" long:"delete-merged-branches" description:"delete local branches merged into the origin default branch"`
+	RestorePackageLock   bool   `short:"R" long:"restore-package-lock" description:"discard package-lock.json changes only when no other files are dirty"`
 }
 
 func (o *Options) SetLogLevel(l *slog.LevelVar) {

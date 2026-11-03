@@ -1,35 +1,97 @@
 # gfa
 
-Go implementation of `gfa`, a command-line tool that discovers Git repositories in the current directory, fetches all remotes, reports repository state, and pulls when safe.
+GFA fetches and updates Git repositories in the current directory. It shows repository states in a live terminal table.
+
+The Go implementation uses Bubble Tea and Lip Gloss. It runs the installed `git` executable and does not require Node.js.
+
+## Usage
+
+Run GFA inside a repository or its parent directory:
+
+```sh
+gfa
+```
+
+Inside a repository, GFA processes that repository only. Otherwise, it processes immediate child directories. It recognizes ordinary repositories and linked worktrees. It does not scan recursively.
+
+GFA processes up to eight repositories at once. For each repository, it reads the branch and working-tree state, then fetches all remotes:
+
+```sh
+git fetch --all --tags --prune --prune-tags --quiet
+```
+
+If the working tree is clean and the branch is behind its upstream, GFA runs `git pull --ff-only`. Diverged branches produce an error instead of a merge or rebase.
+
+CAUTION: The fetch command prunes remote-tracking branches and local tags that no longer exist on the remotes.
+
+## Cleanup flags
+
+All cleanup flags are optional:
+
+| Flag | Short form | Behavior |
+| --- | --- | --- |
+| `--restore-package-lock` | `-R` | Discard lock-file changes only when every dirty file is named `package-lock.json` |
+| `--switch-default-branch` | `-s` | Switch clean repositories to the default branch of `origin` |
+| `--delete-merged-branches` | `-d` | Delete local branches merged into `origin/<default-branch>` with `git branch -d` |
+| `--version` | `-v` | Print the version and exit |
+| `--help` | `-h` | Print command help |
+
+Combine the short cleanup flags:
+
+```sh
+gfa -Rsd
+```
+
+CAUTION: The `-R` flag discards staged and unstaged lock-file changes. It also removes untracked lock files. Renames, copies, conflicts, and changes to other files cause GFA to skip the restore.
+
+Cleanup runs in this order: restore lock files, fetch, switch branches, pull, then delete merged branches. Dirty repositories still fetch, but GFA skips branch switching, pulling, and branch deletion.
+
+GFA reads the default branch from `origin/HEAD`. If that reference is absent, it asks `origin` for its default branch. Repositories without an `origin` cannot use default-branch cleanup.
+
+Branch deletion protects the current branch and default branch. It never uses force deletion. Git also protects branches that other worktrees use. The cleanup report counts deleted, skipped, and unmerged branches.
+
+## Terminal output
+
+The table uses stable column widths and truncates long cells to fit the terminal. Git errors appear as short table entries, with full diagnostics below the final table.
+
+During processing, use these keys:
+
+| Keys | Action |
+| --- | --- |
+| Up / Down, `k` / `j` | Scroll one repository |
+| Page Up / Page Down | Scroll one page |
+| Home / End | Show the first or last page |
+| `q`, Escape, Ctrl-C | Cancel the run and stop Git subprocesses |
+
+The final report includes every repository, including rows outside the live viewport. Cleanup details appear below the table without truncation.
+
+Redirected output contains one final report without animation or terminal control codes. Set `NO_COLOR=1` to disable colors in a terminal. GFA does not enable interactive Git credential prompts.
+
+Exit codes are `0` for success, `1` for errors, and `130` for cancellation. One repository error does not stop other repositories.
+
+## Compatibility
+
+This implementation supports the TypeScript CLI cleanup flags and the `-v` version alias. Unlike the TypeScript implementation, pulls always require a fast-forward.
+
+The previous Go prototype used `-v` for verbosity. Verbosity now uses the repeatable `--verbose` flag.
 
 ## Development
 
-```sh
-go run ./cmd/gfa
-```
-
-Show version information:
+Requirements are Git and Go 1.24.2 or later.
 
 ```sh
-go run ./cmd/gfa --version
+go test ./...
+go build -o dist/gfa ./cmd/gfa
+./dist/gfa --version
 ```
 
-Increase log verbosity with repeated `-v` flags:
+Run static analysis:
 
 ```sh
-go run ./cmd/gfa -v    # WARN
-go run ./cmd/gfa -vv   # INFO
-go run ./cmd/gfa -vvv  # DEBUG
+go vet ./...
+make lint
 ```
 
-## Build
+Linting requires golangci-lint v2. Tests use temporary local repositories and do not contact remote servers.
 
-```sh
-make build
-```
-
-See [BUILD.md](BUILD.md) for build and release maintenance notes.
-
-## Current status
-
-This repository is being ported from the TypeScript/Ink `gfa` implementation. See [PORTING.md](PORTING.md) for the parity plan and remaining release work.
+See [PORTING.md](PORTING.md) for implementation notes and [BUILD.md](BUILD.md) for build and release instructions.
