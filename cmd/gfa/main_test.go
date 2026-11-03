@@ -68,7 +68,7 @@ func TestCLI(t *testing.T) {
 	})
 	t.Run("empty directory", func(t *testing.T) {
 		stdout, stderr, err := runCLI(t, binary, t.TempDir())
-		if err != nil || stderr != "" || !strings.Contains(stdout, "done") {
+		if err != nil || stderr != "" || !strings.Contains(stdout, "0/0 F0 P0 !0") {
 			t.Fatalf("stdout=%q stderr=%q err=%v", stdout, stderr, err)
 		}
 	})
@@ -80,11 +80,18 @@ func TestCLI(t *testing.T) {
 			t.Fatal(err)
 		}
 		stdout, stderr, err := runCLI(t, binary, dir, "-Rsd")
-		if err != nil || stderr != "" || !strings.Contains(stdout, "no remotes") || !strings.Contains(stdout, "package-lock restored") {
+		if err != nil || stderr != "" || !strings.Contains(stdout, "CLEANUP") || !strings.Contains(stdout, "1/1 F0 P0 !0") {
 			t.Fatalf("stdout=%q stderr=%q err=%v", stdout, stderr, err)
+		}
+		lines := strings.Split(stdout, "\n")
+		if got := strings.Join(strings.Fields(lines[1]), " "); got != ". main — — R" {
+			t.Fatalf("unexpected compact cleanup row: %q", got)
 		}
 		if _, err := os.Stat(lock); !os.IsNotExist(err) {
 			t.Fatal("packed cleanup flag did not remove untracked lock")
+		}
+		if strings.Contains(stdout, "package-lock restored") {
+			t.Fatal("successful cleanup was repeated in full")
 		}
 	})
 	t.Run("repository error", func(t *testing.T) {

@@ -47,6 +47,9 @@ func (r *recordingUI) UpdateRepo(dir string, u tui.RepoUpdate) {
 			*field.dst = *field.src
 		}
 	}
+	if u.Done != nil {
+		repo.Done = *u.Done
+	}
 	r.repos[dir] = repo
 }
 
@@ -279,16 +282,16 @@ func TestRunReportsFailuresAndContinuesOtherRepositories(t *testing.T) {
 	if err == nil || err.Error() != "1 repositories failed" {
 		t.Fatalf("wrong aggregate error: %v", err)
 	}
-	if row := ui.get("work"); row.Action != "fetched" {
+	if row := ui.get("work"); row.Action != "fetched" || !row.Done {
 		t.Fatalf("healthy repository did not finish: %+v", row)
 	}
-	if row := ui.get("bad"); row.Status != "error" || row.Error == "" {
+	if row := ui.get("bad"); row.Status != "error" || row.Error == "" || !row.Done {
 		t.Fatalf("missing repository error: %+v", row)
 	}
-	if row := ui.get("no-remote"); row.Remote != "no remotes" {
+	if row := ui.get("no-remote"); row.Remote != "no remotes" || !row.Done {
 		t.Fatalf("wrong no-remote state: %+v", row)
 	}
-	if row := ui.get("not-git"); row.Status != "no git" {
+	if row := ui.get("not-git"); row.Status != "no git" || !row.Done {
 		t.Fatalf("wrong non-repo state: %+v", row)
 	}
 }

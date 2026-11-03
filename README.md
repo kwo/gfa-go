@@ -52,7 +52,35 @@ Branch deletion protects the current branch and default branch. It never uses fo
 
 ## Terminal output
 
-The table uses stable column widths and truncates long cells to fit the terminal. Git errors appear as short table entries, with full diagnostics below the final table.
+The normal table has four columns:
+
+```text
+REPO          BRANCH         SYNC   OP
+gfa-go        main           =      F
+baserss       main*          ↓2     F
+homelab       main           =      P
+old-project   feature/login  ↑1 ↓2  !
+```
+
+| Column | Meaning |
+| --- | --- |
+| `REPO` | Repository directory |
+| `BRANCH` | Branch name, with `*` for a dirty working tree |
+| `SYNC` | `=` up to date, `↑2` ahead two commits, `↓3` behind three commits |
+| `OP` | `F` fetched, `P` pulled, `!` error, `…` pending or in progress |
+
+In `SYNC`, `—` means no upstream and `?` means an unavailable or deleted upstream. In `OP`, `—` means no Git operation was required.
+
+Cleanup flags add a fifth column:
+
+```text
+REPO     BRANCH  SYNC  OP  CLEANUP
+gfa-go   main    =     F   R S D2 U1
+```
+
+Cleanup codes are `R` for restored locks, `S` for a branch switch, `D2` for two deleted branches, and `U1` for one unmerged branch. A `?` suffix marks a skipped action, such as `R?` or `S?`. `D?2` means Git refused to delete two branches. `—` means no change.
+
+The table uses one-space gaps and stable widths. Long cells use an ellipsis, but a dirty branch retains its `*` marker. Colors reinforce the symbols but are not required to read them.
 
 During processing, use these keys:
 
@@ -63,7 +91,9 @@ During processing, use these keys:
 | Home / End | Show the first or last page |
 | `q`, Escape, Ctrl-C | Cancel the run and stop Git subprocesses |
 
-The final report includes every repository, including rows outside the live viewport. Cleanup details appear below the table without truncation.
+The footer shows completed/total repositories and counts for the `F`, `P`, and `!` results. Non-Git directories appear only as a footer count.
+
+The final report includes every repository, including rows outside the live viewport, followed by a short legend. Full errors and cleanup skip reasons appear below the table. Successful cleanup is not repeated unless its compact result exceeds the available width. Full sync counts also appear below the table when they do not fit.
 
 Redirected output contains one final report without animation or terminal control codes. Set `NO_COLOR=1` to disable colors in a terminal. GFA does not enable interactive Git credential prompts.
 

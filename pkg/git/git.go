@@ -47,6 +47,8 @@ func Run(ctx context.Context, ui Reporter, options Options) error {
 					setRepoError(ui, repos[i].Directory, err)
 					errs[i] = err
 				}
+				done := ctx.Err() == nil
+				ui.UpdateRepo(repos[i].Directory, tui.RepoUpdate{Done: &done})
 			}
 		}()
 	}

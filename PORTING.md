@@ -12,11 +12,15 @@ On Unix, each Git subprocess has its own process group. Cancellation kills that 
 
 ## Display
 
-Column widths depend on the terminal width, not repository state. A repository update cannot move the columns.
+The compact table has `REPO`, `BRANCH`, `SYNC`, and `OP` columns. Cleanup flags add `CLEANUP`. Dirty branches retain a `*` suffix, including after a later error or branch truncation.
 
-The renderer measures terminal cells rather than UTF-8 bytes. Table cells contain one line without terminal control codes. Long cells use an ellipsis.
+Directory names determine the initial repository column width. Terminal width sets the remaining column widths. Updates cannot move the columns, but a terminal resize recalculates them.
 
-The live viewport responds to terminal resize events and keyboard scrolling. The final report includes all rows. Full errors and cleanup results appear outside the table.
+The renderer measures terminal cells rather than UTF-8 bytes. Table cells contain one line without terminal control codes. Long cells use an ellipsis. One-space gaps and compact state symbols reduce the table width.
+
+The live viewport responds to terminal resize events and keyboard scrolling. Non-Git directories appear only as a footer count. Worker completion updates make the progress count independent of intermediate fetch results.
+
+The final report includes all repository rows and a short legend. Full errors and cleanup skip reasons appear outside the table. Successful cleanup is not repeated unless its compact result is truncated. Full sync counts also appear when they exceed the column width.
 
 Redirected output bypasses Bubble Tea and prints one plain report. Color selection does not require terminal queries.
 

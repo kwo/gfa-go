@@ -63,7 +63,7 @@ func terminalCancellation(t *testing.T, binary, dir, wrappers, key string, sig o
 		for {
 			n, err := terminal.Read(buf)
 			text.Write(buf[:n])
-			if !signaled && strings.Contains(text.String(), "processing repositories...") {
+			if !signaled && strings.Contains(text.String(), "REPO") {
 				close(ready)
 				signaled = true
 			}

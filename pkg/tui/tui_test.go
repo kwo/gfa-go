@@ -27,7 +27,8 @@ func TestCompletionDrainsUpdatesAndPrintsEveryRow(t *testing.T) {
 				}
 				ui.SetRepos(repos)
 				for _, repo := range repos {
-					ui.UpdateRepo(repo.Directory, RepoUpdate{Status: StringValue("clean"), Action: StringValue("fetched")})
+					done := true
+					ui.UpdateRepo(repo.Directory, RepoUpdate{Status: StringValue("clean"), Action: StringValue("fetched"), Done: &done})
 				}
 				return nil
 			}, nil, &output, 80, 10, interactive, false)
@@ -37,13 +38,20 @@ func TestCompletionDrainsUpdatesAndPrintsEveryRow(t *testing.T) {
 			text := output.String()
 			report := text
 			if interactive {
-				start := strings.LastIndex(text, "\rDIRECTORY")
+				start := strings.LastIndex(text, "\rREPO")
 				if start < 0 {
 					t.Fatal("final header did not return to column zero")
 				}
 				report = text[start+1:]
 			}
-			if strings.Count(report, "fetched") != 200 {
+			fetched := 0
+			for _, line := range strings.Split(report, "\n") {
+				fields := strings.Fields(line)
+				if len(fields) == 4 && fields[3] == "F" {
+					fetched++
+				}
+			}
+			if fetched != 200 {
 				t.Fatal("final report lost repository updates")
 			}
 			for i := range 200 {
@@ -51,7 +59,7 @@ func TestCompletionDrainsUpdatesAndPrintsEveryRow(t *testing.T) {
 					t.Fatalf("missing final row %d", i)
 				}
 			}
-			if !strings.Contains(text, "done") || strings.Contains(text, "program was killed") {
+			if !strings.Contains(text, "200/200 F200 P0 !0") || strings.Contains(text, "program was killed") {
 				t.Fatalf("bad final report: %q", text)
 			}
 		})
@@ -118,6 +126,38 @@ func TestQuitKeysCancelWork(t *testing.T) {
 				t.Fatal("missing cancellation report")
 			}
 		})
+	}
+}
+
+func TestSummaryCountsCompletedOperationsAndIgnoredDirectories(t *testing.T) {
+	m := &model{done: true, width: 80, height: 10, repos: []RepoState{
+		{Directory: "fetch", Done: true, Action: "fetched"},
+		{Directory: "pull", Done: true, Action: "pulled"},
+		{Directory: "error", Done: true, Status: "error"},
+		{Directory: "no-remote", Done: true},
+		{Directory: "in-progress", Action: "fetched"},
+		{Directory: "waiting"},
+		{Directory: "not-a-repo", Done: true, Status: "no git"},
+	}}
+	if got := m.summary(); got != "4/6 F1 P1 !1 · 1 non-Git" {
+		t.Fatalf("wrong progress summary: %q", got)
+	}
+	if strings.Contains(m.finalView(), "not-a-repo") {
+		t.Fatal("non-Git directory remained in the table")
+	}
+	m.status = "cancelled"
+	if !strings.HasPrefix(m.summary(), "cancelled · 4/6") {
+		t.Fatal("cancellation lost progress")
+	}
+}
+
+func TestIgnoredRowsDoNotChangeColumnPositions(t *testing.T) {
+	m := &model{ctx: context.Background(), width: 80, height: 10}
+	m.Update(setReposMsg{{Directory: "short"}, {Directory: "a-long-non-git-directory"}})
+	before := strings.Split(m.View(), "\n")[0]
+	m.Update(repoUpdateMsg{Directory: "a-long-non-git-directory", Update: RepoUpdate{Status: StringValue("no git")}})
+	if got := strings.Split(m.View(), "\n")[0]; got != before {
+		t.Fatal("ignoring a directory moved the columns")
 	}
 }
 

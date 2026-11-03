@@ -2,9 +2,11 @@ package tui
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
@@ -117,18 +119,19 @@ func (t *TUI) dispatch(msg tea.Msg) {
 }
 
 type model struct {
-	ctx      context.Context
-	updates  <-chan tea.Msg
-	repos    []RepoState
-	status   string
-	width    int
-	height   int
-	offset   int
-	cleanup  bool
-	color    bool
-	done     bool
-	quitting bool
-	err      error
+	ctx       context.Context
+	updates   <-chan tea.Msg
+	repos     []RepoState
+	status    string
+	width     int
+	repoWidth int
+	height    int
+	offset    int
+	cleanup   bool
+	color     bool
+	done      bool
+	quitting  bool
+	err       error
 }
 
 func (m *model) Init() tea.Cmd { return m.waitForUpdate() }
@@ -139,6 +142,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.status = string(msg)
 	case setReposMsg:
 		m.repos = []RepoState(msg)
+		m.repoWidth = repositoryWidth(m.repos)
 	case repoUpdateMsg:
 		for i, repo := range m.repos {
 			if repo.Directory == msg.Directory {
@@ -152,12 +156,13 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if len(m.repos) == 0 {
 			m.status = "done: no directories found"
 		}
-		if msg.err != nil {
-			m.status = "done: " + singleLine(msg.err.Error())
+		if errors.Is(msg.err, context.Canceled) {
+			m.status = "cancelled"
 		}
 		return m, tea.Quit
 	case tea.WindowSizeMsg:
 		m.width, m.height = max(1, msg.Width), max(1, msg.Height)
+		m.repoWidth = repositoryWidth(repositoryRows(m.repos))
 		m.clampOffset()
 		return m, nil
 	case tea.KeyMsg:
@@ -186,10 +191,51 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, m.waitForUpdate()
 }
 
-func (m *model) pageSize() int { return max(1, m.height-3) }
+func (m *model) pageSize() int { return max(1, m.height-2) }
 
 func (m *model) clampOffset() {
-	m.offset = max(0, min(m.offset, len(m.repos)-m.pageSize()))
+	count := 0
+	for _, repo := range m.repos {
+		if repo.Status != "no git" {
+			count++
+		}
+	}
+	m.offset = max(0, min(m.offset, count-m.pageSize()))
+}
+
+func (m *model) summary() string {
+	total, done, fetched, pulled, failed, ignored := 0, 0, 0, 0, 0, 0
+	for _, repo := range m.repos {
+		if repo.Status == "no git" {
+			ignored++
+			continue
+		}
+		total++
+		if !repo.Done {
+			continue
+		}
+		done++
+		switch operationSymbol(repo) {
+		case "F":
+			fetched++
+		case "P":
+			pulled++
+		case "!":
+			failed++
+		}
+	}
+	text := fmt.Sprintf("%d/%d F%d P%d !%d", done, total, fetched, pulled, failed)
+	if ignored > 0 {
+		text += fmt.Sprintf(" · %d non-Git", ignored)
+	}
+	if m.status == "cancelled" {
+		text = "cancelled · " + text
+	} else if m.done && m.err != nil && failed == 0 {
+		text += " · ! " + singleLine(m.err.Error())
+	} else if !m.done && len(m.repos) == 0 {
+		text = "…"
+	}
+	return text
 }
 
 func (m *model) View() string {
@@ -197,21 +243,40 @@ func (m *model) View() string {
 		return ""
 	}
 	m.clampOffset()
-	end := min(len(m.repos), m.offset+m.pageSize())
-	table := renderRepoTable(m.repos[m.offset:end], m.width, m.cleanup, m.color)
-	status := m.status
-	if len(m.repos) > m.pageSize() {
-		status += fmt.Sprintf(" | %d-%d of %d | up/down, PgUp/PgDn", m.offset+1, end, len(m.repos))
+	rows := repositoryRows(m.repos)
+	end := min(len(rows), m.offset+m.pageSize())
+	if m.repoWidth == 0 {
+		m.repoWidth = repositoryWidth(m.repos)
 	}
-	view := table + "\n\n" + ansi.Truncate(singleLine(status), m.width, "…")
-	if m.height < 4 {
-		return ansi.Truncate(singleLine(status), m.width, "…")
+	table := renderRepoTable(rows[m.offset:end], m.width, m.repoWidth, m.cleanup, m.color)
+	status := m.summary()
+	if len(rows) > m.pageSize() {
+		status += fmt.Sprintf(" [%d-%d] ↑/↓ PgUp/PgDn", m.offset+1, end)
 	}
-	return view
+	footer := ansi.Truncate(singleLine(status), m.width, "…")
+	if m.height < 3 || table == "" {
+		return footer
+	}
+	return table + "\n" + footer
 }
 
 func (m *model) finalView() string {
-	return renderRepoTable(m.repos, m.width, m.cleanup, m.color) + "\n\n" + ansi.Hardwrap(singleLine(m.status), m.width, true) + "\n" + renderDetails(m.repos, m.width, m.cleanup)
+	rows := repositoryRows(m.repos)
+	if m.repoWidth == 0 {
+		m.repoWidth = repositoryWidth(m.repos)
+	}
+	var parts []string
+	if table := renderRepoTable(rows, m.width, m.repoWidth, m.cleanup, m.color); table != "" {
+		parts = append(parts, table)
+	}
+	parts = append(parts, ansi.Hardwrap(m.summary(), m.width, true))
+	if len(rows) > 0 {
+		parts = append(parts, ansi.Hardwrap("* dirty  ↑ ahead  ↓ behind  F fetched  P pulled  ! error", m.width, true))
+		if m.cleanup {
+			parts = append(parts, ansi.Hardwrap("R locks  S branch  D# deleted  U# unmerged  ? skipped", m.width, true))
+		}
+	}
+	return strings.Join(parts, "\n") + renderDetails(rows, m.width, m.repoWidth, m.cleanup)
 }
 
 func (m *model) waitForUpdate() tea.Cmd {
