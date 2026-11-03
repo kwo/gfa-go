@@ -50,6 +50,16 @@ Merged-branch cleanup compares local branches with the origin default branch. It
 - Unknown flags and positional arguments produce an error.
 - The display supports terminal resizing and scrolling.
 
+## Build tools
+
+The project requires Go 1.27.0 or later. `Taskfile.yml` provides the build interface, with Task and golangci-lint pinned in the root Go module.
+
+The default task runs lint, tests, and compilation in order. `build-go` compiles without checks. No task installs the executable.
+
+Tool dependencies share the application module graph. Two replacement directives retain the tested Bubble Tea and Lip Gloss versions. Newer transitive versions caused incompatible cell-buffer APIs and terminal startup queries.
+
+Tool updates require the terminal regression tests as well as the normal build checks. The tooling packages are not part of the application executable.
+
 ## Verification
 
 Tests cover table sizing, Unicode, stable columns, multiline errors, scrolling, completion, and cancellation.

@@ -77,21 +77,27 @@ The previous Go prototype used `-v` for verbosity. Verbosity now uses the repeat
 
 ## Development
 
-Requirements are Git and Go 1.24.2 or later.
+Requirements are Git and Go 1.27.0 or later. The module pins Task and golangci-lint. No separate tool installation is required.
+
+Run lint and tests, then build the executable:
 
 ```sh
-go test ./...
-go build -o dist/gfa ./cmd/gfa
+go tool task build
 ./dist/gfa --version
 ```
 
-Run static analysis:
+The default command, `go tool task`, runs the same checked build. It does not install the executable.
+
+Run individual tasks:
 
 ```sh
-go vet ./...
-make lint
+go tool task --list
+go tool task test
+go tool task lint
+go tool task build-go VERSION=v1.2.3
+go tool task clean
 ```
 
-Linting requires golangci-lint v2. Tests use temporary local repositories and do not contact remote servers.
+The test task runs the suite twice. Git tests use temporary local repositories and do not contact remote servers. The first tool invocation can download Go modules.
 
 See [PORTING.md](PORTING.md) for implementation notes and [BUILD.md](BUILD.md) for build and release instructions.

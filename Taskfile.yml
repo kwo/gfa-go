@@ -1,0 +1,50 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: '3'
+
+vars:
+  BINARY: dist/gfa
+  CMD: ./cmd/gfa
+  VERSION: dev
+  LDFLAGS: '-s -w -X main.buildVersion={{.VERSION}}'
+
+tasks:
+  default:
+    desc: Check and build GFA
+    cmds:
+      - task: build
+
+  build:
+    desc: Run lint and tests, then build GFA
+    aliases: [all]
+    cmds:
+      - task: lint
+      - task: test
+      - task: build-go
+
+  build-go:
+    desc: Build the GFA executable without running checks
+    env:
+      CGO_ENABLED: '0'
+    cmds:
+      - mkdir -p '{{dir .BINARY}}'
+      - >-
+        go build -trimpath
+        -ldflags "{{.LDFLAGS}}"
+        -o '{{.BINARY}}'
+        '{{.CMD}}'
+
+  test:
+    desc: Run the test suite twice
+    cmds:
+      - go test -count=2 ./...
+
+  lint:
+    desc: Check the Go source code
+    cmds:
+      - go tool golangci-lint run
+
+  clean:
+    desc: Remove generated executables and release artifacts
+    cmds:
+      - rm -rf dist

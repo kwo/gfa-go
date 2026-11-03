@@ -2,59 +2,78 @@
 
 This document covers local builds and the existing GitHub release tooling for the Go `gfa` replacement.
 
+## Requirements
+
+Use Git and Go 1.27.0 or later. The root `go.mod` pins Task `v3.53.1` and golangci-lint `v2.14.0` through tool directives.
+
+Go downloads and builds these tools on first use. A separate Task or golangci-lint installation is not required.
+
 ## Local build
 
-Build the local binary:
+Run the checked build:
 
 ```sh
-make build
+go tool task build
 ```
 
-Without Make, build directly with Go:
+The default `go tool task` command and the `all` alias run the same build. The task runs lint, tests, and compilation in order. A failed check stops the build.
+
+The executable is `dist/gfa`. Builds use `CGO_ENABLED=0`, `-trimpath`, and stripped linker flags. No task installs the executable.
+
+Build without checks, with an explicit version string:
 
 ```sh
-go build -trimpath -o dist/gfa ./cmd/gfa
+go tool task build-go VERSION=v1.2.3
+./dist/gfa --version
 ```
 
-Build with an explicit version string:
+The default version is `dev`. The `build` task also accepts the `VERSION` override.
+
+List the tasks:
 
 ```sh
-make build VERSION=v1.2.3
+go tool task --list
 ```
 
-The binary is written to:
-
-```text
-dist/gfa
-```
-
-Run tests:
+Run the test suite twice:
 
 ```sh
-make test
+go tool task test
 ```
 
-With golangci-lint v2 installed, run linting:
+Run the pinned linter:
 
 ```sh
-make lint
+go tool task lint
 ```
 
-Clean build artifacts:
+Apply linter fixes:
 
 ```sh
-make clean
+go tool golangci-lint run --fix
+```
+
+Remove generated executables and release artifacts under `dist`:
+
+```sh
+go tool task clean
+```
+
+For direct compilation without Task, run:
+
+```sh
+CGO_ENABLED=0 go build -trimpath -o dist/gfa ./cmd/gfa
 ```
 
 ## Manual cross-compilation
 
-Examples:
+These direct Go commands build application binaries without running host-side checks:
 
 ```sh
-GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags "-s -w -X main.buildVersion=v1.2.3" -o dist/gfa_darwin_arm64 ./cmd/gfa
-GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.buildVersion=v1.2.3" -o dist/gfa_darwin_amd64 ./cmd/gfa
-GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.buildVersion=v1.2.3" -o dist/gfa_linux_amd64 ./cmd/gfa
-GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w -X main.buildVersion=v1.2.3" -o dist/gfa_linux_arm64 ./cmd/gfa
+CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags "-s -w -X main.buildVersion=v1.2.3" -o dist/gfa_darwin_arm64 ./cmd/gfa
+CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.buildVersion=v1.2.3" -o dist/gfa_darwin_amd64 ./cmd/gfa
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w -X main.buildVersion=v1.2.3" -o dist/gfa_linux_amd64 ./cmd/gfa
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w -X main.buildVersion=v1.2.3" -o dist/gfa_linux_arm64 ./cmd/gfa
 ```
 
 ## Release workflow
