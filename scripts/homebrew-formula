@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo="kwo/gfa"
+repo="kwo/gfa-go"
 tag=""
 
 usage() {

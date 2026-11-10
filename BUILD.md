@@ -78,15 +78,18 @@ CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags "-s -w -X main
 
 ## Release workflow
 
-CAUTION: This checkout uses Forgejo, but the existing release workflow and formula generator target GitHub. Do not publish until you select the release destination.
+The `.github/workflows/release.yml` workflow publishes releases to `kwo/gfa-go` through GitHub Actions. It runs when a tag that starts with lowercase `v` reaches GitHub. Tags without this prefix do not trigger a release.
 
-The `.github/workflows/release.yml` workflow publishes platform archives and checksums through GitHub Actions. A tag pushed to Forgejo does not configure that GitHub workflow.
+The workflow runs lint, tests, and compilation before it builds the four platform archives. It embeds the tag in `gfa --version` and publishes the archives with SHA-256 checksums. Publication requires an existing remote tag.
 
-Example:
+The `origin` remote targets Forgejo. The `github` remote targets GitHub. A tag pushed only to Forgejo does not trigger this workflow.
+
+Push the release commit to GitHub before you push its tag:
 
 ```sh
+git push github main
 git tag v1.2.3
-git push origin v1.2.3
+git push github v1.2.3
 ```
 
 The release workflow publishes:
@@ -114,6 +117,8 @@ Specific tag:
 ```sh
 scripts/homebrew-formula --tag v1.2.3
 ```
+
+The script reads releases from `kwo/gfa-go` on GitHub.
 
 The script:
 
